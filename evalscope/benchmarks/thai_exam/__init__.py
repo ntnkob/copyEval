@@ -1,0 +1,1 @@
+from .thai_exam_qa_adapter import *
