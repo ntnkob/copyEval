@@ -220,3 +220,105 @@ class SemScore(SingletonMetric):
     def apply(self, predictions: List[str], references: List[str]) -> List[float]:
         scores = self.scorer.score_all(predictions, references)
         return [round(score, 6) for score in scores]
+
+''' Added for Thai evaluation'''
+import re
+ 
+def clean_loop(text):
+    text = str(text)
+ 
+    # ลบ <think> / </think>
+    text = re.sub(r"</?think>", "", text)
+ 
+    # ลบ tag answer แต่เก็บข้อความข้างในไว้
+    text = re.sub(r"</?answer>", "", text)
+ 
+    # normalize space
+    text = re.sub(r"\s+", " ", text).strip()
+ 
+    # ตัดข้อความซ้ำติดกันแบบ character-level
+    for size in range(20, min(500, len(text)//2) + 1):
+        chunk = text[:size]
+ 
+        # ถ้า chunk แรกซ้ำต่อกัน
+        if text.startswith(chunk * 2):
+            return chunk.strip()
+ 
+    # fallback: ถ้ามีประโยคเดิมซ้ำหลังเว้นวรรค
+    parts = text.split(" ")
+    result = []
+    seen = set()
+ 
+    for p in parts:
+        if p in seen and len(p) > 10:
+            break
+        result.append(p)
+        seen.add(p)
+ 
+    return " ".join(result).strip()
+def clean_text(text):
+    text = re.sub(
+            r"<think>.*?</think>",
+            "",
+            text,
+            flags=re.DOTALL
+        )
+    text = re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL)
+    text = text.replace("<thinking>","").replace("</thinking>","")
+    text = text.replace("<think>","").replace("</think>","")
+    return text.strip()
+ 
+def safe_text(x):
+    if x is None:
+        return ""
+    return str(x).strip()
+def normalize_text(text: str) -> str:
+    """Normalize text by lowering case and stripping whitespace."""
+    return text.strip().lower()
+
+@register_metric(name='comet_kiwi_meet_mr')
+class CometKiwiMeetMR(Metric):
+ 
+    _model = None
+    _device = None
+ 
+    def __init__(self):
+        super().__init__()
+ 
+        if CometKiwiMeetMR._model is None:
+            from comet import load_from_checkpoint
+ 
+            model_path = "/project/lt200396-thllmB/scratch/choke/templates/model/COMET-Kiwi-MEET-MR/checkpoints/model_local.ckpt"
+ 
+            CometKiwiMeetMR._device = "cuda" if torch.cuda.is_available() else "cpu"
+ 
+            model = load_from_checkpoint(model_path)
+            model = model.to(CometKiwiMeetMR._device)
+            model.eval()
+ 
+            CometKiwiMeetMR._model = model
+ 
+        self.model = CometKiwiMeetMR._model
+        self.device = CometKiwiMeetMR._device
+ 
+    def apply(self, predictions, references, **kwargs):
+ 
+        
+        data = []
+        for pred, src in zip(predictions, references):
+ 
+            
+            pred = clean_loop(str(safe_text(pred)))
+            data.append({
+                "src": str(src),
+                "mt": str(pred),
+            })
+ 
+        gpus = 1 if self.device == "cuda" else 0
+ 
+        output = self.model.predict(
+        data,
+        batch_size=20,
+        gpus=gpus,
+        )
+        return [float(s) for s in output.scores]
