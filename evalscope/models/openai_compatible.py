@@ -27,6 +27,39 @@ from .utils.openai import (
 
 logger = get_logger()
 
+def is_reasoning_model(model_str: str) -> bool:
+                """Check if model is a reasoning model requiring max_completion_tokens."""
+                # O-series reasoning models (o1, o1-mini, o1-2024-12-17, o2, o3, o4, o5, o6, o7, o8, o9)
+                # Pattern: "o" followed by single digit 1-9, then optional "-" or end of string
+                # TODO: Update to support o10+ when OpenAI releases models beyond o9
+                if (
+                    len(model_str) >= 2
+                    and model_str[0] == "o"
+                    and model_str[1] in "123456789"
+                ):
+                    # Allow single digit o-series: o1, o2, ..., o9
+                    if len(model_str) == 2 or model_str[2] in ("-", "_"):
+                        return True
+
+                # GPT-5 and newer generation models (gpt-5, gpt-5-*, gpt-6, gpt-7, ..., gpt-19)
+                # Pattern: "gpt-" followed by single or double digit >= 5, max 19
+                # TODO: Update to support gpt-20+ when OpenAI releases models beyond gpt-19
+                if model_str.startswith("gpt-"):
+                    version_str = (
+                        model_str[4:].split("-")[0].split("_")[0]
+                    )  # Get version number
+                    try:
+                        version = float(version_str)
+                        if 5 <= version <= 19:
+                            return True
+                    except ValueError:
+                        pass
+
+                # Other specific reasoning models
+                if model_str == "codex-mini":
+                    return True
+
+                return False
 
 class OpenAICompatibleAPI(ModelAPI):
 
@@ -104,6 +137,19 @@ class OpenAICompatibleAPI(ModelAPI):
             config=config,
             tools=len(tools) > 0,
         )
+
+        requires_max_completion_tokens = is_reasoning_model(self.model_name)
+        # If max_tokens is provided and model requires max_completion_tokens, map it
+        if requires_max_completion_tokens and "max_tokens" in completion_params:
+            completion_params["max_completion_tokens"] = completion_params.pop("max_tokens")
+
+        # Handle parameter constraints for reasoning models (GPT-5 and o-series)
+        if requires_max_completion_tokens:
+            # GPT-5 and o-series models have strict parameter requirements:
+            # 1. Temperature must be exactly 1.0 (only supported value)
+            # 2. top_p parameter is not supported and must be removed
+            completion_params["temperature"] = 1.0
+            completion_params.pop("top_p", None)
 
         request = dict(
             messages=openai_chat_messages(

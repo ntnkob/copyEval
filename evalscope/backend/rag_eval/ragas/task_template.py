@@ -192,6 +192,7 @@ async def _run_ragas_eval(args) -> Any:
 
     # 1. Build LLM
     llm = _build_llm(args.critic_llm)
+    print(f"Build LLM: {llm}")
 
     # 2. Build Embeddings
     embeddings = _build_embeddings(args.embeddings)

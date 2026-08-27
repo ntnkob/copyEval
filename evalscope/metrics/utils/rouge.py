@@ -6,6 +6,8 @@ from rouge_chinese import Rouge
 from statistics import mean
 from tqdm import tqdm
 
+from pythainlp.tokenize import word_tokenize as thai_word_tokenize
+
 from evalscope.constants import MetricsConstant
 from evalscope.metrics.utils.bundled_rouge_score import rouge_scorer
 from evalscope.utils.logger import get_logger
@@ -22,6 +24,26 @@ class DummyTokenizer:
 def is_contains_chinese(strs):
     for _char in strs:
         if '\u4e00' <= _char <= '\u9fa5':
+            return True
+    return False
+
+class ThaiTokenizer:
+    """Tokenizer for Thai text using pythainlp."""
+
+    def tokenize(self, text: str):
+        """Tokenize text using pythainlp's word tokenizer.
+
+        This handles Thai text, English text, and mixed Thai+English text.
+        """
+        tokens = thai_word_tokenize(text, engine='newmm', keep_whitespace=False)
+        return tokens
+
+
+def is_contains_thai(text: str) -> bool:
+    """Check if text contains Thai characters."""
+    for char in text:
+        # Thai Unicode range: U+0E00 to U+0E7F
+        if '\u0e00' <= char <= '\u0e7f':
             return True
     return False
 
@@ -43,6 +65,32 @@ def compute_rouge_score(predict_l, reference_l):
     for rouge_key in MetricsConstant.ROUGE_KEYS:
         rlt[rouge_key] = (mean(result[rouge_key]) * 100 if rouge_key in result else MetricsConstant.INVALID_VALUE)
     return rlt
+
+def compute_rouge_score_one_sample_th(predict, reference):
+    """Compute ROUGE score using Thai tokenizer with rouge scorer."""
+    result = dict()
+    th_scorer = Rouge()
+    for p, r in zip(predict, reference):
+        # Use Thai tokenizer for all text (Thai, English, or mixed)
+        p = ' '.join(thai_word_tokenize(p, engine='newmm', keep_whitespace=False))
+        r = ' '.join(thai_word_tokenize(r, engine='newmm', keep_whitespace=False))
+
+        try:
+            score = th_scorer.get_scores(p, r, ignore_empty=True)[0]
+        except Exception as e:
+            logger.warning(f'rouge score error: {p} {r} {e}')
+            continue
+        result['Rouge-1-R'] = score['rouge-1']['r']
+        result['Rouge-1-P'] = score['rouge-1']['p']
+        result['Rouge-1-F'] = score['rouge-1']['f']
+        result['Rouge-2-R'] = score['rouge-2']['r']
+        result['Rouge-2-P'] = score['rouge-2']['p']
+        result['Rouge-2-F'] = score['rouge-2']['f']
+        result['Rouge-L-R'] = score['rouge-l']['r']
+        result['Rouge-L-P'] = score['rouge-l']['p']
+        result['Rouge-L-F'] = score['rouge-l']['f']
+
+    return result
 
 
 def compute_rouge_score_one_sample_zh(predict, reference):

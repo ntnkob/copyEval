@@ -1,5 +1,5 @@
 # Copyright (c) Alibaba, Inc. and its affiliates.
-
+# flake8: noqa: E501
 import re
 from typing import Any, Dict
 
@@ -8,9 +8,9 @@ from evalscope.api.dataset import Sample
 from evalscope.api.evaluator import TaskState
 from evalscope.api.messages.chat_message import ChatMessageUser
 from evalscope.api.metric import Score
+from evalscope.api.registry import register_benchmark
 from evalscope.api.metric.semantics import MetricSelector
 from evalscope.api.mixin import CodeExecutionSandboxMixin
-from evalscope.api.registry import register_benchmark
 from evalscope.constants import Tags
 from evalscope.utils.logger import get_logger
 
@@ -19,44 +19,17 @@ logger = get_logger()
 
 @register_benchmark(
     BenchmarkMeta(
-        name='humaneval',
-        pretty_name='HumanEval',
+        name='humaneval-th',
+        pretty_name='HumanEval-Thai',
         tags=[Tags.CODING],
-        description="""
-## Overview
-
-HumanEval is a benchmark for evaluating the code generation capabilities of language models. It consists of 164 hand-written Python programming problems with function signatures, docstrings, and comprehensive test cases.
-
-## Task Description
-
-- **Task Type**: Code Generation (Python)
-- **Input**: Function signature with docstring describing the expected behavior
-- **Output**: Complete Python function implementation
-- **Languages**: Python only
-
-## Key Features
-
-- 164 hand-crafted programming problems
-- Each problem includes a function signature, docstring, and test cases
-- Problems range from simple string manipulation to complex algorithms
-- Canonical solutions provided for reference
-- Automatic correctness verification through test execution
-
-## Evaluation Notes
-
-- **Security Warning**: By default, code is executed in the local environment. We strongly recommend using sandbox execution for safety. See the [sandbox documentation](https://evalscope.readthedocs.io/en/latest/user_guides/sandbox.html) for details.
-- Supports `pass@k` metric calculation for measuring generation quality
-- Default timeout is 4 seconds per problem
-- Code is extracted from markdown code blocks if present
-""",
-        dataset_id='openai/openai_humaneval',
-        subset_list=['openai_humaneval'],
+        description='HumanEval Thai is a benchmark for evaluating the ability of code generation models to write Python functions based on given specifications in Thai language.',
+        dataset_id='iapp/openai_humaneval-th',
+        subset_list=['default'],
         metric_list=['acc'],
         aggregation='mean_and_pass_at_k',
         primary_metric=MetricSelector(name='accuracy', aggregation='pass_at_k', dimensions={'k': 1}),
         eval_split='test',
-        prompt_template=
-        'Read the following function signature and docstring, and fully implement the function described. Your response should only contain the code for this function.\n{question}',  # noqa: E501
+        prompt_template='คุณคือผู้เชี่ยวชาญด้านการเขียนโค้ด จงคิดวิเคราะห์คำถามแต่ละข้อและแสดงกระบวนการคิด เริ่มกระบวนการคิดด้วย <think> และจบด้วย </think>\n\nเขียนโค้ดให้สมบูรณ์ตามที่กำหนด:\n{question}\n\nเขียนเฉพาะโค้ดคำตอบสุดท้ายระหว่าง ``` และ ```',
         review_timeout=4,
         sandbox_config={
             'image': 'python:3.11-slim',

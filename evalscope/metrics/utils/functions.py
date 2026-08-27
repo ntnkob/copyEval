@@ -7,6 +7,7 @@ import itertools
 import math
 import numpy as np
 from typing import Dict, List, Union
+from pythainlp.tokenize import word_tokenize as thai_word_tokenize
 
 
 def normalize_text(text: str) -> str:
@@ -76,8 +77,25 @@ def bleu_ngram_one_sample(predict: str, reference: str):
                 return True
         return False
 
-    predict = list(jieba.cut(predict)) if is_contains_chinese(predict) else word_tokenize(predict)
-    reference = [list(jieba.cut(reference))] if is_contains_chinese(reference) else [word_tokenize(reference)]
+    def is_contains_thai(text: str) -> bool:
+        """Check if text contains Thai characters."""
+        for char in text:
+            # Thai Unicode range: U+0E00 to U+0E7F
+            if '\u0e00' <= char <= '\u0e7f':
+                return True
+        return False
+
+    def language_tokenize(text: str) -> list[str]:
+        """Tokenize text according to the language"""
+        if is_contains_chinese(text):
+            return list(jieba.cut(predict))
+        elif is_contains_thai(text):
+            return thai_word_tokenize(text, engine='newmm', keep_whitespace=False)
+        else:
+            return word_tokenize(text)
+
+    predict = language_tokenize(predict)
+    reference = [language_tokenize(reference)]
 
     result = dict()
     result['bleu-1'] = sentence_bleu(reference, predict, weights=(1, 0, 0, 0))

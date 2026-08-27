@@ -118,7 +118,7 @@ AIME 2024 (American Invitational Mathematics Examination 2024) is a benchmark ba
 - Only integer answers are accepted (matching AIME format)
 - Problems are significantly harder than GSM8K or standard MATH benchmark
 """,
-        dataset_id='evalscope/aime24',
+        dataset_id='math-ai/aime24', # Changed to huggingface dataset_hub
         subset_list=['default'],
         metric_list=[{
             'acc': {

@@ -204,6 +204,39 @@ class COMETScore(SingletonMetric):
 
         return [round(score, 6) for score in scores]
 
+@register_metric(name='comet_kiwi_meet_mr')
+class COMETKiWiMeetMRScore(SingletonMetric):
+
+    def _init_once(self, model_id_or_path: str = 'Chula-AI/COMET-Kiwi-MEET-MR'):
+        """COMETScore metric.
+
+        Args:
+            model_name (str, optional): The model name on huggingface.
+                Defaults to 'Chula-AI/COMET-Kiwi-MEET-MR'.
+        """
+        check_import('comet', 'unbabel-comet', raise_error=True, feature_name='COMETScore Metric')
+
+        from comet import load_from_checkpoint
+        from huggingface_hub import snapshot_download
+
+        self.model_name = model_id_or_path
+        model_path = snapshot_download(model_id_or_path)
+        checkpoint_path = os.path.join(model_path, 'checkpoints', 'model.ckpt')
+        self.comet_scorer = load_from_checkpoint(checkpoint_path)
+
+    def apply(self, samples: List[dict]) -> List[float]:
+        """Apply COMET scoring."""
+        import torch
+
+        model_output = self.comet_scorer.predict(
+            samples=samples,
+            batch_size=1024,
+            gpus=1 if torch.cuda.is_available() else 0,
+            progress_bar=False,
+        )
+        scores = model_output.scores if hasattr(model_output, 'scores') else [model_output.system_score] * len(samples)
+
+        return [round(score, 6) for score in scores]
 
 @register_metric(name='sem_score')
 class SemScore(SingletonMetric):
