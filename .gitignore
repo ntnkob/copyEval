@@ -178,3 +178,9 @@ ragas_mini_testset_score.json
 # Docker build artifacts (pre-cloned agent sources)
 evalscope/agent/external/dockerfiles/hermes-agent-src/
 evalscope/agent/external/dockerfiles/hermes-install.sh
+
+# Zone.Identifier 
+*:Zone.Identifier
+
+# .ipynb
+*.ipynb
