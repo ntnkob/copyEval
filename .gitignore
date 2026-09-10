@@ -184,3 +184,9 @@ evalscope/agent/external/dockerfiles/hermes-install.sh
 
 # .ipynb
 *.ipynb
+
+# Private data
+private_data/
+
+# Specific files
+copyEval_eval.py
